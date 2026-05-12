@@ -21,7 +21,8 @@ class EdgeNode:
                 a_s,
                 bits_w,
                 bits_s,
-                patient_id):
+                patient_id,
+                emit_alert=True):
 
         sic_result = self.sic.decode(
             rx,
@@ -44,12 +45,17 @@ class EdgeNode:
         if fall_result["fall_detected"]:
             alert = self.alert_manager.generate_alert(
                 patient_id,
-                fall_result["severity"]
+                fall_result["severity"],
+                fall_result["confidence"]
             )
-            print(alert)
+            if emit_alert:
+                print(alert)
+        else:
+            alert = None
 
         return {
             "sic": sic_result,
             "analysis": analysis,
-            "fall": fall_result
+            "fall": fall_result,
+            "alert": alert
         }

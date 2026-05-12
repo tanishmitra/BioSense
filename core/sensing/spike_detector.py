@@ -1,9 +1,11 @@
 import numpy as np
 
+from config.settings import THRESHOLD_K
+
 
 class SpikeDetector:
 
-    def detect(self, signal, k=4):
+    def detect(self, signal, k=THRESHOLD_K):
 
         mu = np.mean(signal)
         sigma = np.std(signal)
