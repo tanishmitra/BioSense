@@ -1,6 +1,13 @@
 import threading
+import sys
+from pathlib import Path
+
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from simulation.monte_carlo import run_monte_carlo
 from simulation.run_complete_pipeline import run_pipeline
