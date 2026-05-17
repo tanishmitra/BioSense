@@ -41,9 +41,9 @@ def generate_vitals(patient, abnormal=False):
     }
 
 
-def generate_fall_alert(patient_id, timestamp, fall_probability):
-    confidence = float(np.random.uniform(0.75, 1.0))
-    severity = "HIGH" if confidence >= 0.9 else "MEDIUM"
+def generate_fall_alert(patient_id, timestamp, fall_probability, sensing):
+    confidence = float(sensing["confidence"])
+    severity = sensing["severity"]
 
     return {
         "patient_id": patient_id,
@@ -52,7 +52,7 @@ def generate_fall_alert(patient_id, timestamp, fall_probability):
         "confidence": round(confidence, 3),
         "timestamp": timestamp,
         "fall_probability": float(fall_probability),
-        "reason": "PROBABILITY_TRIGGER",
+        "reason": sensing["basis"],
     }
 
 
@@ -81,22 +81,42 @@ def generate_stream_frame(
         for patient in patients
     ]
 
+    result = run_pipeline(
+        num_bits=num_bits,
+        inject_fall=bool(falling_patient_ids),
+        show_plots=False,
+        emit_alert=False,
+    )
+    sensing = {
+        "fall_detected": result["fall"]["fall_detected"],
+        "severity": result["fall"]["severity"],
+        "confidence": result["fall"]["confidence"],
+        "basis": result["fall"]["basis"],
+        "spike_count": result["analysis"]["spike_count"],
+        "peak": result["analysis"]["peak"],
+        "radar_event_frames": result["radar"]["event_frame_count"],
+        "radar_max_snr_db": result["radar"]["max_snr_db"],
+        "radar_range_migration_m": result["radar"]["range_migration_m"],
+        "radar_estimated_velocity_mps": result["radar"]["estimated_velocity_mps"],
+        "radar_track_stable": result["radar"]["track_stable"],
+        "radar_track_lost": result["radar"]["track_lost"],
+        "radar_track_range_m": result["radar"]["track_range_m"],
+        "radar_track_loss_frames": result["radar"]["track_loss_frame_count"],
+    }
+
     alerts = [
         generate_fall_alert(
             vital["patient_id"],
             vital["timestamp"],
             fall_probability,
+            sensing,
         )
         for vital in vitals
-        if vital["patient_id"] in falling_patient_ids
+        if (
+            vital["patient_id"] in falling_patient_ids
+            and sensing["fall_detected"]
+        )
     ]
-
-    result = run_pipeline(
-        num_bits=num_bits,
-        inject_fall=bool(alerts),
-        show_plots=False,
-        emit_alert=False,
-    )
 
     return {
         "frame_id": int(frame_id),
@@ -107,13 +127,7 @@ def generate_stream_frame(
             "ber_weak": result["sic"]["ber_weak"],
             "ber_strong": result["sic"]["ber_strong"],
         },
-        "sensing": {
-            "fall_detected": result["fall"]["fall_detected"],
-            "severity": result["fall"]["severity"],
-            "confidence": result["fall"]["confidence"],
-            "spike_count": result["analysis"]["spike_count"],
-            "peak": result["analysis"]["peak"],
-        },
+        "sensing": sensing,
         "alerts": alerts,
         "alert": alerts[0] if alerts else None,
     }

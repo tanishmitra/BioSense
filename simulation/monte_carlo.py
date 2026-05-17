@@ -21,7 +21,14 @@ def run_monte_carlo(trials=MONTE_CARLO_TRIALS, num_bits=NUM_BITS):
             "ber_strong": result["sic"]["ber_strong"],
             "severity": result["fall"]["severity"],
             "confidence": result["fall"]["confidence"],
+            "basis": result["fall"]["basis"],
             "spike_count": result["analysis"]["spike_count"],
+            "radar_event_frames": result["radar"]["event_frame_count"],
+            "radar_max_snr_db": result["radar"]["max_snr_db"],
+            "radar_range_migration_m": result["radar"]["range_migration_m"],
+            "radar_track_stable": result["radar"]["track_stable"],
+            "radar_track_lost": result["radar"]["track_lost"],
+            "radar_track_loss_frames": result["radar"]["track_loss_frame_count"],
         })
 
     positives = [record for record in records if record["expected_fall"]]

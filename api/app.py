@@ -31,6 +31,8 @@ STREAM_LOCK = threading.Lock()
 
 
 def _compact_result(result):
+    radar = result["radar"] or {}
+
     return {
         "scenario": result["scenario"],
         "sic": {
@@ -47,6 +49,32 @@ def _compact_result(result):
             "duration_samples": result["analysis"]["duration_samples"],
             "window_energy": result["analysis"]["window_energy"],
             "spikes": result["analysis"]["spikes"].astype(int).tolist(),
+        },
+        "radar": {
+            "event_detected": bool(radar.get("event_detected", False)),
+            "event_frame_count": int(radar.get("event_frame_count", 0)),
+            "max_snr_db": float(radar.get("max_snr_db", 0.0)),
+            "range_migration_m": float(radar.get("range_migration_m", 0.0)),
+            "estimated_velocity_mps": float(radar.get("estimated_velocity_mps", 0.0)),
+            "phase_variation_rad": float(radar.get("phase_variation_rad", 0.0)),
+            "motion_detected": bool(radar.get("motion_detected", False)),
+            "track_stable": bool(radar.get("track_stable", False)),
+            "track_lost": bool(radar.get("track_lost", False)),
+            "track_range_m": float(radar.get("track_range_m", 0.0)),
+            "track_baseline_snr_db": float(radar.get("track_baseline_snr_db", 0.0)),
+            "track_loss_threshold_db": float(radar.get("track_loss_threshold_db", 0.0)),
+            "track_loss_frame_count": int(radar.get("track_loss_frame_count", 0)),
+            "threshold_snr_db": float(radar.get("threshold_snr_db", 0.0)),
+            "event_frames": radar.get("event_frames", []).astype(int).tolist()
+            if hasattr(radar.get("event_frames", []), "astype") else [],
+            "track_loss_frames": radar.get("track_loss_frames", []).astype(int).tolist()
+            if hasattr(radar.get("track_loss_frames", []), "astype") else [],
+            "peak_ranges_m": radar.get("peak_ranges_m", []).astype(float).tolist()
+            if hasattr(radar.get("peak_ranges_m", []), "astype") else [],
+            "snr_db": radar.get("snr_db", []).astype(float).tolist()
+            if hasattr(radar.get("snr_db", []), "astype") else [],
+            "track_snr_db": radar.get("track_snr_db", []).astype(float).tolist()
+            if hasattr(radar.get("track_snr_db", []), "astype") else [],
         },
         "fall": result["fall"],
         "alert": result["alert"],
@@ -225,6 +253,7 @@ def latest_residual():
 
     return jsonify({
         "analysis": LAST_RESULT["analysis"],
+        "radar": LAST_RESULT["radar"],
         "fall": LAST_RESULT["fall"],
     })
 

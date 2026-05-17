@@ -1,12 +1,10 @@
 import numpy as np
 
 from config.settings import (
-    ABNORMAL_DOPPLER_HZ,
-    ABNORMAL_DOPPLER_THRESHOLD_HZ,
     BURST_LENGTH,
     NUM_BITS,
+    RADAR_FALL_VELOCITY_MPS,
     SENSING_ECHO_AMPLITUDE,
-    SENSING_DOPPLER_HZ,
 )
 from core.communication.awgn import generate_noise
 from core.communication.channel import rayleigh_channel
@@ -14,8 +12,9 @@ from core.communication.noma import superpose_signals
 from core.communication.power_allocator import allocate_power
 from core.edge.edge_node import EdgeNode
 from core.patients.patient_factory import make_patient
-from core.sensing.echo_model import generate_fall_echo
+from core.sensing.echo_model import generate_radar_echo
 from visualization.plot_metrics import plot_ber
+from visualization.plot_radar import RadarPlotter
 from visualization.plot_residual import ResidualPlotter
 
 
@@ -25,8 +24,9 @@ def run_pipeline(
     show_plots=False,
     rng_seed=None,
     emit_alert=False,
-    doppler_hz=SENSING_DOPPLER_HZ,
     echo_amplitude=SENSING_ECHO_AMPLITUDE,
+    radial_velocity_mps=RADAR_FALL_VELOCITY_MPS,
+    save_radar_plot_path=None,
 ):
     if rng_seed is not None:
         np.random.seed(rng_seed)
@@ -54,12 +54,14 @@ def run_pipeline(
 
     event_start = num_bits // 2
     event_length = BURST_LENGTH if inject_fall else 0
-    sensing_echo = generate_fall_echo(
+    sensing_echo = generate_radar_echo(
         tx_superposed,
         event_start,
         event_length,
-        amplitude=echo_amplitude if inject_fall else 0.0,
-        doppler_hz=doppler_hz if inject_fall else 0.0,
+        target_distance_m=weak_patient.distance_m,
+        amplitude=echo_amplitude,
+        radial_velocity_mps=radial_velocity_mps if inject_fall else 0.0,
+        track_loss=inject_fall,
     )
 
     rx = (
@@ -81,6 +83,8 @@ def run_pipeline(
         bits_s,
         weak_patient.patient_id,
         emit_alert=emit_alert,
+        reference_waveform=tx_superposed,
+        expected_range_m=weak_patient.distance_m,
     )
 
     result["scenario"] = {
@@ -89,8 +93,9 @@ def run_pipeline(
         "event_start": int(event_start),
         "event_length": int(event_length),
         "sensing_echo_amplitude": float(echo_amplitude if inject_fall else 0.0),
-        "doppler_hz": float(doppler_hz if inject_fall else 0.0),
-        "abnormal_doppler": bool(inject_fall and doppler_hz >= ABNORMAL_DOPPLER_THRESHOLD_HZ),
+        "sensing_model": "matched_filter_radar",
+        "radial_velocity_mps": float(radial_velocity_mps if inject_fall else 0.0),
+        "target_distance_m": float(weak_patient.distance_m),
         "power": power,
         "strong_patient": {
             "patient_id": strong_patient.patient_id,
@@ -114,6 +119,14 @@ def run_pipeline(
         plot_ber(
             result["sic"]["ber_weak"],
             result["sic"]["ber_strong"],
+        )
+
+    if show_plots or save_radar_plot_path is not None:
+        RadarPlotter().plot(
+            result["radar"],
+            result["fall"],
+            save_path=save_radar_plot_path,
+            show=show_plots,
         )
 
     return result
