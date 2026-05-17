@@ -3,24 +3,20 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from config.settings import RADAR_SAMPLE_DELAY_PER_METER
-
 
 class RadarPlotter:
 
     def plot(self, radar_result, fall_result=None, save_path=None, show=True):
-        range_profiles = np.asarray(radar_result["range_profiles"])
         snr_db = np.asarray(radar_result["snr_db"])
         event_frames = np.asarray(radar_result["event_frames"], dtype=int)
         track_loss_frames = np.asarray(radar_result["track_loss_frames"], dtype=int)
         threshold = float(radar_result["threshold_snr_db"])
 
-        fig, axes = plt.subplots(3, 1, figsize=(11, 9), constrained_layout=True)
+        fig, axes = plt.subplots(2, 1, figsize=(11, 7), constrained_layout=True)
         fig.suptitle(self._title(fall_result), fontsize=14, fontweight="bold")
 
-        self._plot_range_heatmap(axes[0], range_profiles, event_frames, track_loss_frames)
-        self._plot_snr(axes[1], snr_db, threshold, event_frames)
-        self._plot_track_loss(axes[2], radar_result, track_loss_frames)
+        self._plot_snr(axes[0], snr_db, threshold, event_frames)
+        self._plot_track_loss(axes[1], radar_result, track_loss_frames)
 
         if save_path is not None:
             path = Path(save_path)
@@ -33,32 +29,6 @@ class RadarPlotter:
             plt.close(fig)
 
         return fig
-
-    def _plot_range_heatmap(self, ax, range_profiles, event_frames, track_loss_frames):
-        if range_profiles.size == 0:
-            ax.text(0.5, 0.5, "No radar range profiles", ha="center", va="center")
-            ax.set_axis_off()
-            return
-
-        power_db = 10 * np.log10(range_profiles.T + 1e-12)
-        max_range_m = (range_profiles.shape[1] - 1) / max(RADAR_SAMPLE_DELAY_PER_METER, 1e-12)
-
-        image = ax.imshow(
-            power_db,
-            aspect="auto",
-            origin="lower",
-            extent=[0, range_profiles.shape[0] - 1, 0, max_range_m],
-            cmap="magma",
-        )
-        for frame_idx in event_frames:
-            ax.axvline(frame_idx, color="cyan", alpha=0.45, linewidth=1)
-        for frame_idx in track_loss_frames:
-            ax.axvline(frame_idx, color="lime", alpha=0.65, linewidth=1.5)
-
-        ax.set_title("Matched-filter radar range profile")
-        ax.set_xlabel("Radar processing window")
-        ax.set_ylabel("Range (m)")
-        plt.colorbar(image, ax=ax, label="Return power (dB)")
 
     def _plot_snr(self, ax, snr_db, threshold, event_frames):
         frames = np.arange(len(snr_db))
